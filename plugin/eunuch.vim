@@ -137,7 +137,7 @@ function! s:Chmod(bang, perm, ...) abort
     elseif a:perm ==# '-x'
       let perm = substitute(s:fcall('getfperm', file), '\(..\).', '\1-', 'g')
     endif
-    if len(perm) && !s:fcall('setfperm', file, perm)
+    if len(perm) && file =~# '^\a\a\+:' && !s:fcall('setfperm', file, perm)
       return ''
     endif
   endif
@@ -219,11 +219,14 @@ function! s:SudoError() abort
   endif
 endfunction
 
+let s:nomodeline = v:version > 703 ? '<nomodeline>' : ''
+
 function! s:SudoReadCmd() abort
   if &shellpipe =~ '|&'
     return 'echoerr ' . string('eunuch.vim: no sudo read support for csh')
   endif
   silent %delete_
+  silent exe 'doautocmd' s:nomodeline 'BufReadPre'
   let [silent, cmd] = s:SilentSudoCmd('cat')
   execute silent 'read !' . cmd . ' "%" 2> ' . s:error_file
   let exit_status = v:shell_error
@@ -231,10 +234,13 @@ function! s:SudoReadCmd() abort
   setlocal nomodified
   if exit_status
     return 'echoerr ' . string(s:SudoError())
+  else
+    return 'silent doautocmd BufReadPost'
   endif
 endfunction
 
 function! s:SudoWriteCmd() abort
+  silent exe 'doautocmd' s:nomodeline 'BufWritePre'
   let [silent, cmd] = s:SilentSudoCmd('tee')
   let cmd .= ' "%" >/dev/null'
   if &shellpipe =~ '|&'
@@ -248,7 +254,7 @@ function! s:SudoWriteCmd() abort
     return 'echoerr ' . string(error)
   else
     setlocal nomodified
-    return ''
+    return 'silent doautocmd ' . s:nomodeline . ' BufWritePost'
   endif
 endfunction
 
@@ -318,13 +324,6 @@ augroup eunuch
         \   edit |
         \   unlet b:chmod_post |
         \ endif
-
-  autocmd BufNewFile /etc/init.d/*
-        \ if filereadable("/etc/init.d/skeleton") |
-        \   keepalt read /etc/init.d/skeleton |
-        \   1delete_ |
-        \ endif |
-        \ set ft=sh
 augroup END
 
 " vim:set sw=2 sts=2:
