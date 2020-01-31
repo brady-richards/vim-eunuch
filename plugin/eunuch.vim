@@ -106,7 +106,7 @@ command! -bar -nargs=1 -bang -complete=file Move
       \   setlocal modified |
       \   exe 'keepalt saveas! '.s:fnameescape(s:dst) |
       \   if s:src !=# expand('%:p') |
-      \     execute 'bwipe '.s:fnameescape(s:src) |
+      \     execute 'silent bwipe '.s:fnameescape(s:src) |
       \   endif |
       \   filetype detect |
       \ endif |
